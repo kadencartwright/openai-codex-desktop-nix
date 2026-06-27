@@ -79,6 +79,7 @@ jobs:
         run: git diff -- default.nix package.json package-lock.json
 
       - name: Create pull request
+        id: create_pr
         if: steps.latest.outputs.has_update == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
@@ -91,3 +92,10 @@ jobs:
 
             This PR was created only after `scripts/update-version.sh --latest`
             completed successfully, including `nix build .#openai-codex-desktop`.
+
+      - name: Enable auto-merge
+        if: steps.create_pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.create_pr.outputs.pull-request-number }}
+        run: gh pr merge "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --auto --squash

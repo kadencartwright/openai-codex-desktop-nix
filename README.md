@@ -124,15 +124,9 @@ scripts/update-version.sh --latest
 ```
 
 The repository also has a scheduled GitHub Action that checks the appcast three
-times per day and opens a PR if a newer version builds successfully.
-
-After the build passes, commit and tag the update:
-
-```sh
-git commit -am "Update Codex desktop to 26.602.71036"
-git tag -a v26.602.71036 -m "OpenAI Codex desktop 26.602.71036"
-git push origin main v26.602.71036
-```
+times per day and opens an auto-merge PR if a newer version builds
+successfully. After the update lands on `main`, another workflow creates a
+`v<version>` tag and moves the `latest` tag to the current package version.
 
 There is also a repo-local Codex skill at
 `.codex/skills/update-codex-desktop-package` for agents maintaining this

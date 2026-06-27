@@ -1,0 +1,49 @@
+name: Tag Codex desktop releases
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - default.nix
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: codex-desktop-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create version tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(sed -n 's/^  version = "\([^"]*\)";/\1/p' default.nix)"
+          if [[ -z "${version}" ]]; then
+            echo "Could not determine package version from default.nix" >&2
+            exit 1
+          fi
+
+          tag="v${version}"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} already exists"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "${tag}" -m "Codex desktop ${version}"
+            git push origin "refs/tags/${tag}"
+          fi
+
+          git tag -f latest
+          git push --force origin refs/tags/latest
