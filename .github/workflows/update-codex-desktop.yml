@@ -40,20 +40,46 @@ jobs:
               ;;
           esac
 
-      - name: Install Nix
+      - name: Check latest version
+        id: latest
         if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        run: |
+          current_version="$(sed -n 's/^  version = "\([^"]*\)";/\1/p' default.nix)"
+          appcast_xml="$(curl -fsSL https://persistent.oaistatic.com/codex-app-prod/appcast.xml)"
+          latest_version="$(printf '%s\n' "${appcast_xml}" | sed -n 's/.*<sparkle:shortVersionString>\([^<]*\)<\/sparkle:shortVersionString>.*/\1/p' | head -n1)"
+
+          if [[ -z "${current_version}" || -z "${latest_version}" ]]; then
+            echo "Could not determine current or latest version" >&2
+            echo "current_version=${current_version}" >&2
+            echo "latest_version=${latest_version}" >&2
+            exit 1
+          fi
+
+          echo "current_version=${current_version}" >>"${GITHUB_OUTPUT}"
+          echo "latest_version=${latest_version}" >>"${GITHUB_OUTPUT}"
+
+          if [[ "${current_version}" == "${latest_version}" ]]; then
+            echo "Already at Codex desktop ${current_version}"
+            echo "has_update=false" >>"${GITHUB_OUTPUT}"
+          else
+            echo "Codex desktop update available: ${current_version} -> ${latest_version}"
+            echo "has_update=true" >>"${GITHUB_OUTPUT}"
+          fi
+
+      - name: Install Nix
+        if: steps.latest.outputs.has_update == 'true'
         uses: DeterminateSystems/nix-installer-action@v16
 
       - name: Update to latest Codex desktop
-        if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        if: steps.latest.outputs.has_update == 'true'
         run: scripts/update-version.sh --latest
 
       - name: Show diff
-        if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        if: steps.latest.outputs.has_update == 'true'
         run: git diff -- default.nix package.json package-lock.json
 
       - name: Create pull request
-        if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        if: steps.latest.outputs.has_update == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           branch: update/codex-desktop-latest
