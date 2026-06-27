@@ -106,8 +106,8 @@ stdenv.mkDerivation rec {
     cp -a node_modules/better-sqlite3 app-extracted/node_modules/
     cp -a node_modules/node-pty app-extracted/node_modules/
 
-    strings app-extracted/node_modules/better-sqlite3/build/Release/better_sqlite3.node \
-      | grep -q node_register_module_v140
+    grep -a -q node_register_module_v140 \
+      app-extracted/node_modules/better-sqlite3/build/Release/better_sqlite3.node
 
     find app-extracted/node_modules/better-sqlite3 app-extracted/node_modules/node-pty \
       -type f \( -name Makefile -o -name '*.mk' -o -name config.gypi \) -delete
