@@ -1,0 +1,67 @@
+name: Check for Codex desktop updates
+
+on:
+  schedule:
+    # GitHub schedules are UTC. These cover the possible UTC hours for 6am,
+    # noon, and 6pm in America/Chicago across CST and CDT; a step below gates
+    # execution to the actual local hours.
+    - cron: "0 0,11,12,17,18,23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: codex-desktop-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check local schedule
+        id: local_schedule
+        if: github.event_name == 'schedule'
+        run: |
+          hour="$(TZ=America/Chicago date +%H)"
+          case "${hour}" in
+            06|12|18)
+              echo "Running scheduled update check at ${hour}:00 America/Chicago"
+              echo "should_run=true" >>"${GITHUB_OUTPUT}"
+              ;;
+            *)
+              echo "Skipping; local time is ${hour}:00 America/Chicago"
+              echo "should_run=false" >>"${GITHUB_OUTPUT}"
+              ;;
+          esac
+
+      - name: Install Nix
+        if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        uses: DeterminateSystems/nix-installer-action@v16
+
+      - name: Update to latest Codex desktop
+        if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        run: scripts/update-version.sh --latest
+
+      - name: Show diff
+        if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        run: git diff -- default.nix package.json package-lock.json
+
+      - name: Create pull request
+        if: github.event_name != 'schedule' || steps.local_schedule.outputs.should_run == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: update/codex-desktop-latest
+          delete-branch: true
+          commit-message: Update Codex desktop package
+          title: Update Codex desktop package
+          body: |
+            Automated update from the OpenAI Codex desktop Sparkle appcast.
+
+            This PR was created only after `scripts/update-version.sh --latest`
+            completed successfully, including `nix build .#openai-codex-desktop`.

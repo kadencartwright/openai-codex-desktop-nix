@@ -117,6 +117,15 @@ Maintainers can use the helper script for the common case:
 scripts/update-version.sh 26.602.71036
 ```
 
+Or update to the latest version listed in OpenAI's Sparkle appcast:
+
+```sh
+scripts/update-version.sh --latest
+```
+
+The repository also has a scheduled GitHub Action that checks the appcast three
+times per day and opens a PR if a newer version builds successfully.
+
 After the build passes, commit and tag the update:
 
 ```sh
