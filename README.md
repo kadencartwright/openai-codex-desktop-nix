@@ -111,6 +111,24 @@ nix flake update
 nix build
 ```
 
+Maintainers can use the helper script for the common case:
+
+```sh
+scripts/update-version.sh 26.602.71036
+```
+
+After the build passes, commit and tag the update:
+
+```sh
+git commit -am "Update Codex desktop to 26.602.71036"
+git tag -a v26.602.71036 -m "OpenAI Codex desktop 26.602.71036"
+git push origin main v26.602.71036
+```
+
+There is also a repo-local Codex skill at
+`.codex/skills/update-codex-desktop-package` for agents maintaining this
+package.
+
 ## License
 
 This repository only contains the Nix packaging and Linux patching code. It does

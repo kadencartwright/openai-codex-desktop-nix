@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Codex Desktop Package"
+  short_description: "Update this Nix package to new Codex desktop builds"
+  default_prompt: "Use $update-codex-desktop-package to update the OpenAI Codex desktop Nix package to the latest available version."
