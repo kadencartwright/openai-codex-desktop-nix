@@ -1,0 +1,6 @@
+/result
+/result-*
+/.direnv
+/.envrc
+node_modules/
+npm-debug.log*
