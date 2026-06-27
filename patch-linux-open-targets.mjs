@@ -23,9 +23,34 @@ if (!existsSync(buildRoot) || !statSync(buildRoot).isDirectory()) {
   fail(`could not find Vite build directory: ${buildRoot}`);
 }
 
-const targetFiles = readJsFiles(buildRoot).filter((file) =>
-  readFileSync(file, "utf8").includes("open-in-targets"),
-);
+function findRegistryMatch(source) {
+  const oldPattern =
+    /var ([A-Za-z_$][\w$]*)=\[((?:[A-Za-z_$][\w$]*,?)+)\],([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\(`open-in-targets`\);/;
+  const oldMatch = source.match(oldPattern);
+  if (oldMatch) {
+    return {
+      kind: "old",
+      match: oldMatch,
+    };
+  }
+
+  const newPattern =
+    /var ([A-Za-z_$][\w$]*)=\[((?:[A-Za-z_$][\w$]*,?)+)\];([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\(`open-in-targets`\);function ([A-Za-z_$][\w$]*)\(e\)\{return \1\.flatMap/;
+  const newMatch = source.match(newPattern);
+  if (newMatch) {
+    return {
+      kind: "new",
+      match: newMatch,
+    };
+  }
+
+  return null;
+}
+
+const targetFiles = readJsFiles(buildRoot).filter((file) => {
+  const source = readFileSync(file, "utf8");
+  return source.includes("open-in-targets") && findRegistryMatch(source) != null;
+});
 
 if (targetFiles.length !== 1) {
   fail(`expected one open-in-targets bundle, found ${targetFiles.length}`);
@@ -66,7 +91,11 @@ const codeArgsName = codeArgsMatch[1];
 
 const openPathPattern =
   /async function ([A-Za-z_$][\w$]*)\(e\)\{let t=await [A-Za-z_$][\w$]*\.shell\.openPath\(e\);if\(t\)throw Error\(t\)\}/;
-const openPathMatch = source.match(openPathPattern);
+const openPathMatch =
+  source.match(openPathPattern) ??
+  source.match(
+    /async function ([A-Za-z_$][\w$]*)\(e\)\{let\{shell:[A-Za-z_$][\w$]*\}=await import\(`electron`\),[A-Za-z_$][\w$]*=await [A-Za-z_$][\w$]*\.openPath\(e\);if\([A-Za-z_$][\w$]*\)throw Error\([A-Za-z_$][\w$]*\)\}/,
+  );
 
 if (!openPathMatch) {
   fail("could not find Electron shell.openPath helper");
@@ -74,22 +103,16 @@ if (!openPathMatch) {
 
 const openPathName = openPathMatch[1];
 
-const registryPattern =
-  /var ([A-Za-z_$][\w$]*)=\[((?:[A-Za-z_$][\w$]*,?)+)\],([A-Za-z_$][\w$]*)=([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\(`open-in-targets`\);/;
-const registryMatch = source.match(registryPattern);
+const registry = findRegistryMatch(source);
+const registryMatch = registry?.match;
 
 if (!registryMatch) {
   fail("could not find open-in-targets registry declaration");
 }
 
-const [
-  registrySource,
-  registryName,
-  registryEntries,
-  loggerName,
-  loggerFactoryObjectName,
-  loggerFactoryName,
-] = registryMatch;
+const registrySource = registryMatch[0];
+const registryName = registryMatch[1];
+const registryEntries = registryMatch[2];
 const expectedTargets = ["vscode", "vscodeInsiders", "cursor", "windsurf", "zed", "fileManager"];
 
 for (const targetId of expectedTargets) {
@@ -144,7 +167,18 @@ const linuxTargets = [
   "linuxFileManager",
 ].join(",");
 
-const replacement = `${linuxPatch}var ${registryName}=[${linuxTargets},${registryEntries}],${loggerName}=${loggerFactoryObjectName}.${loggerFactoryName}(\`open-in-targets\`);`;
+let replacement;
+if (registry.kind === "old") {
+  const loggerName = registryMatch[3];
+  const loggerFactoryObjectName = registryMatch[4];
+  const loggerFactoryName = registryMatch[5];
+  replacement = `${linuxPatch}var ${registryName}=[${linuxTargets},${registryEntries}],${loggerName}=${loggerFactoryObjectName}.${loggerFactoryName}(\`open-in-targets\`);`;
+} else {
+  const loggerFactoryObjectName = registryMatch[3];
+  const loggerFactoryName = registryMatch[4];
+  const registryAccessorName = registryMatch[5];
+  replacement = `${linuxPatch}var ${registryName}=[${linuxTargets},${registryEntries}];${loggerFactoryObjectName}.${loggerFactoryName}(\`open-in-targets\`);function ${registryAccessorName}(e){return ${registryName}.flatMap`;
+}
 source = source.replace(registrySource, replacement);
 
 for (const marker of ["linuxResolveEditorTarget", "linuxFileManager", "code-oss"]) {
