@@ -146,7 +146,8 @@ stdenv.mkDerivation rec {
       --replace-fail "@out@" "$out" \
       --replace-fail "@electron@" "${electron_39}" \
       --replace-fail "@codex@" "${codex}" \
-      --replace-fail "@python@" "${python3}"
+      --replace-fail "@python@" "${python3}" \
+      --replace-fail "@version@" "${version}"
     wrapProgram "$out/bin/codex-desktop" \
       --prefix PATH : "${lib.makeBinPath [ xdg-utils ]}"
 

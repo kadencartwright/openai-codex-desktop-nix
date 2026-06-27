@@ -23,7 +23,7 @@ export CODEX_CLI_PATH="${CODEX_CLI_PATH:-$(command -v codex || true)}"
 export CODEX_CLI_PATH="${CODEX_CLI_PATH:-@codex@/bin/codex}"
 export BUILD_FLAVOR="${BUILD_FLAVOR:-prod}"
 export NODE_ENV="${NODE_ENV:-production}"
-export ELECTRON_RENDERER_URL="${ELECTRON_RENDERER_URL:-http://localhost:5175/}"
+export ELECTRON_RENDERER_URL="${ELECTRON_RENDERER_URL:-http://localhost:5175/?codexPackageVersion=@version@}"
 
 http_pid=""
 electron_pid=""
