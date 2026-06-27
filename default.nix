@@ -18,13 +18,13 @@
 
 stdenv.mkDerivation rec {
   pname = "openai-codex-desktop";
-  version = "26.602.71036";
+  version = "26.623.42026";
 
   src = ./.;
 
   codexZip = fetchurl {
     url = "https://persistent.oaistatic.com/codex-app-prod/Codex-darwin-arm64-${version}.zip";
-    hash = "sha256-MnhR7/skEf/egw9ErzLDp/eFz8cv0qSfwpM8Qu8LW+U=";
+    hash = "sha256-DYkLejGoP0hHkV7utsdCs7UtWJYnz7AGbo3/WKZdfJ8=";
   };
 
   npmDepsHash = "sha256-GPxj8C4wG5G6beWIWglmWytyIcvpTGnk2PU6rXQxNVI=";
