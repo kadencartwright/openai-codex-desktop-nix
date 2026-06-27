@@ -93,9 +93,31 @@ jobs:
             This PR was created only after `scripts/update-version.sh --latest`
             completed successfully, including `nix build .#openai-codex-desktop`.
 
-      - name: Enable auto-merge
+      - name: Merge update pull request
         if: steps.create_pr.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.create_pr.outputs.pull-request-number }}
-        run: gh pr merge "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --auto --squash
+        run: gh pr merge "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --squash --delete-branch
+
+      - name: Tag merged update
+        if: steps.create_pr.outputs.pull-request-number != ''
+        env:
+          VERSION: ${{ steps.latest.outputs.latest_version }}
+        run: |
+          git fetch origin main --tags
+          commit="$(git rev-parse origin/main)"
+          tag="v${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} already exists"
+          else
+            git tag -a "${tag}" "${commit}" -m "Codex desktop ${VERSION}"
+            git push origin "refs/tags/${tag}"
+          fi
+
+          git tag -f latest "${commit}"
+          git push --force origin refs/tags/latest
